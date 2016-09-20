@@ -19,7 +19,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module ADC_Testing_Top(
-	input clk,
+	input clk, // USB clock => 48MHz, 20.83ns period
 	input adc_clk,
 	input [PRECISION-1:0] adc_code_in,
 	input ext_reset
@@ -62,5 +62,45 @@ fifo_adc fifo_adc_0(
   .wr_data_count(wr_data_count) // 12 bit;
 );
 
+/*************************************************/
+//------------- Opal Kelly Comm. ----------------//
+/*************************************************/
+/*
+file:///C:/Users/Alphacore%20Engineer%201/Desktop/FrontPanel-UM.pdf
+page 41
+
+Endpoint Type | Address Range | Sync/Async  | Data Type
+Pipe In       | 0x80 - 0x9F   | Synchronous | Multi-byte transfer
+Pipe Out      | 0xA0 - 0xBF   | Synchronous | Multi-byte transfer
+
+ENDPOINT DATAWIDTH
+Endpoint Type | USB 2.0
+Pipe          | 16bit
+*/
+
+
+/*************************************************/
+//------------- Readback ADC data ---------------//
+/*************************************************/
+always @(posedge clk, posedge rst) begin
+	if (rst) begin
+		
+	end else begin
+		
+	end
+
+end
+
+
+/*************************************************/
+//------------- Write in ADC data ---------------//
+/*************************************************/
+always @(posedge adc_clk, posedge rst) begin
+	if (rst) begin
+		
+	end else begin
+		
+	end
+end
 
 endmodule
