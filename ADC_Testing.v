@@ -130,6 +130,7 @@ okHost hostIF (
 	.hi_in(hi_in),
 	.hi_out(hi_out),
 	.hi_inout(hi_inout),
+	.hi_aa(hi_aa),
 	.ti_clk(ti_clk),
 	.ok1(ok1),
 	.ok2(ok2)
@@ -138,7 +139,7 @@ okHost hostIF (
 okWireIn wire00 (
 	.ok1(ok1),
 	.ep_addr(8'h00),
-	.eop_dataout(ep00wire)
+	.ep_dataout(ep00wire)
 );
 
 okPipeOut pipeA0 (
@@ -156,7 +157,7 @@ okWireOut wire20 (
 	.ep_datain(ep20wire)
 );
 
-okWireOR #(.N(2)) (
+okWireOR #(.N(2)) wireOR(
 	.ok2(ok2),
 	.ok2s(ok2x)
 );
