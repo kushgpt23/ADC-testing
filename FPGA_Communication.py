@@ -3,6 +3,7 @@ Created on Sep 20, 2016
 
 @author: Alphacore Engineer 1
 '''
+from ok.ok import PLL22150
 
 
 """
@@ -42,9 +43,12 @@ dev.ReadFromPipeOut(address, read_size, buf)
 """
 
 """
-Endpoint Type | Address Range | Sync/Async  | Data Type
-Pipe In       | 0x80 - 0x9F   | Synchronous | Multi-byte transfer
-Pipe Out      | 0xA0 - 0xBF   | Synchronous | Multi-byte transfer
+Endpoint Type | Address Range | Sync/Async   | Data Type
+-------------------------------------------------------------------
+Wire In       | 0x00 - 0x1F   | Asynchronous | Signal state
+Wire Out      | 0x20 - 0x3F   | Asynchronous | Signal state
+Pipe In       | 0x80 - 0x9F   | Synchronous  | Multi-byte transfer
+Pipe Out      | 0xA0 - 0xBF   | Synchronous  | Multi-byte transfer
 
 ENDPOINT DATAWIDTH
 Endpoint Type | USB 2.0
@@ -54,6 +58,18 @@ Pipe          | 16bit
 
 
 
+
+class FPGA_Communication(object):
+    def __init__(self, dev, pll):
+        self.dev = dev
+        self.pll = pll
+        
+    def readADC(self, epAddr=0xA0, length=1):
+        data = -1
+        self.dev.ReadFromPipeOut(epAddr, length, data)
+        return data
+
+        
 
 
 
