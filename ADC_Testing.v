@@ -28,7 +28,11 @@ module ADC_Testing_Top(
 	input  wire [7:0]  hi_in,
 	output wire [1:0]  hi_out,
 	inout  wire [15:0] hi_inout,
-	inout wire hi_aa
+	inout wire hi_aa,
+	
+	output wire i2c_sda,
+	output wire i2c_scl,
+	output wire hi_muxsel
 );
 
 parameter PRECISION = 10;
@@ -54,7 +58,7 @@ Debounce debounce_0(
 /*************************************************/
 //------------------- FIFO ----------------------//
 /*************************************************/
-reg wr_en;
+wire wr_en;
 reg rd_en;
 wire [PRECISION-1:0] adc_code_out;
 wire fifo_full;
@@ -114,6 +118,14 @@ wire [15:0] ep20wire; // wire out
 wire [15:0] epA0pipe; // pipe out
 wire epA0read; // pipe out read signal from host
 
+assign i2c_sda = 1'bz;
+assign i2c_scl = 1'bz;
+assign hi_muxsel = 1'b0;
+
+assign reset = ep00wire[0];
+
+wire [17*2-1:0] ok2x;
+
 okHost hostIF (
 	.hi_in(hi_in),
 	.hi_out(hi_out),
@@ -129,19 +141,24 @@ okWireIn wire00 (
 	.eop_dataout(ep00wire)
 );
 
+okPipeOut pipeA0 (
+	.ok1(ok1),
+	.ok2(ok2x[0*17 +: 17]),
+	.ep_addr(8'hA0),
+	.ep_datain(epA0pipe), // data from FIFO
+	.ep_read(epA0read) // enable rd_en at FIFO
+);
+
 okWireOut wire20 (
 	.ok1(ok1),
-	.ok2(ok2),
+	.ok2(ok2x[1*17 +: 17]),
 	.ep_addr(8'h20),
 	.ep_datain(ep20wire)
 );
 
-okPipeOut pipeA0 (
-	.ok1(ok1),
+okWireOR #(.N(2)) (
 	.ok2(ok2),
-	.ep_addr(8'hA0),
-	.ep_datain(epA0pipe), // data from FIFO
-	.ep_read(epA0read) // enable rd_en at FIFO
+	.ok2s(ok2x)
 );
 
 /*************************************************/
@@ -168,12 +185,9 @@ end
 //------------- Write in ADC data ---------------//
 /*************************************************/
 
-always @(posedge adc_clk, posedge rst) begin
-	if (rst) begin
-		wr_en <= 1'b0;
-	end else begin
-		wr_en <= ~overflowflag;
-	end
-end
+// wr_en should not be dependent on the adc_clk;
+// Also, overflowflag will probably never be 1, but
+// it is there for debugging purposes
+assign wr_en = ~(rst | overflowflag);
 
 endmodule
