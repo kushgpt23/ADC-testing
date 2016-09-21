@@ -38,7 +38,7 @@ module ADC_Testing_Top(
 parameter PRECISION = 10;
 parameter FIFO_COUNT_WIDTH = 12;
 parameter UNDERFLOW_THRESHOLD = 0; // lowest # available databytes in FIFO
-parameter OVERFLOW_THRESHOLD = {FIFO_COUNT_WIDTH {1'b1}}; // 
+//parameter OVERFLOW_THRESHOLD = {FIFO_COUNT_WIDTH {1'b1}}; // 
 
 
 /*************************************************/
@@ -58,7 +58,7 @@ Debounce debounce_0(
 /*************************************************/
 //------------------- FIFO ----------------------//
 /*************************************************/
-wire wr_en;
+reg wr_en = 1'b1;
 reg rd_en;
 wire [PRECISION-1:0] adc_code_out;
 wire fifo_full;
@@ -83,8 +83,8 @@ fifo_adc fifo_adc_0(
 wire underflowflag;
 assign underflowflag = rd_data_count <= UNDERFLOW_THRESHOLD ? 1'b1 : 1'b0;
 
-wire overflowflag;
-assign overflowflag = wr_data_count >= OVERFLOW_THRESHOLD ? 1'b1 : 1'b0;
+//wire overflowflag;
+//assign overflowflag = wr_data_count >= OVERFLOW_THRESHOLD ? 1'b1 : 1'b0;
 
 /*************************************************/
 //------------- Opal Kelly Comm. ----------------//
@@ -172,13 +172,9 @@ assign epA0pipe = ~underflowflag ?
 
 assign fifo_clk = ~ti_clk; // page 50 of FrontPanel-UM.pdf
 
-always @(negedge ti_clk, posedge rst) begin
-	if (rst) begin
-		rd_en <= 1'b0;
-	end else begin
-		if (epA0read) begin
-			rd_en <= ~underflowflag;
-		end
+always @(posedge ti_clk) begin
+	if (epA0read) begin
+		rd_en <= ~underflowflag;
 	end
 end
 
@@ -186,9 +182,6 @@ end
 //------------- Write in ADC data ---------------//
 /*************************************************/
 
-// wr_en should not be dependent on the adc_clk;
-// Also, overflowflag will probably never be 1, but
-// it is there for debugging purposes
-assign wr_en = ~(rst | overflowflag);
+// Writing data is all taken care of via the ADC signals
 
 endmodule
