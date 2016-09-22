@@ -6,7 +6,16 @@ Created on Sep 16, 2016
 from math import log10, pi
 from tkinter import filedialog
 from tkinter import messagebox
+from tkinter import Tk
 from MessageTexts import *
+
+class MBox():
+    
+    @staticmethod
+    def showerror(title, message):
+        root = Tk()
+        root.withdraw()
+        messagebox.showerror(title, message)
 
 def extractData(dataFileName=None, oneLine=False, samplesPerCode=1):
     if dataFileName is None:
