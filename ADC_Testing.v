@@ -19,7 +19,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module ADC_Testing_Top(
-	input clk, // USB clock => 48MHz, 20.83ns period
+	input clk,
 	input adc_clk,
 	input [PRECISION-1:0] adc_code_in,
 	input ext_reset,
@@ -58,7 +58,6 @@ Debounce debounce_0(
 /*************************************************/
 //------------------- FIFO ----------------------//
 /*************************************************/
-reg wr_en = 1'b1;
 reg rd_en;
 wire [PRECISION-1:0] adc_code_out;
 wire fifo_full;
@@ -71,7 +70,7 @@ fifo_adc fifo_adc_0(
   .wr_clk(adc_clk),
   .rd_clk(fifo_clk),
   .din(adc_code_in), // 10 bit;
-  .wr_en(wr_en),
+  .wr_en(1'b1),
   .rd_en(rd_en),
   .dout(adc_code_out), // 10 bit;
   .full(fifo_full),
