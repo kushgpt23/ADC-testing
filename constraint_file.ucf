@@ -58,7 +58,7 @@ NET "hi_in<5>" OFFSET = IN 13.33 ns VALID 20.83 ns BEFORE "hi_in<0>" RISING;
 NET "hi_in<6>" OFFSET = IN 13.33 ns VALID 20.83 ns BEFORE "hi_in<0>" RISING;
 NET "hi_in<7>" OFFSET = IN 13.33 ns VALID 20.83 ns BEFORE "hi_in<0>" RISING;
 
-NET "adc_clk"       LOC="AB13" | IOSTANDARD="LVCMOS33";
+#NET "adc_clk"       LOC="AB13" | IOSTANDARD="LVCMOS33";
 NET "clk"       LOC="Y11"  | IOSTANDARD="LVCMOS33";
 #NET "clk3"       LOC="AB11" | IOSTANDARD="LVCMOS33";
 
