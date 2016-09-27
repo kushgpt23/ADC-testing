@@ -44,7 +44,7 @@ parameter UNDERFLOW_THRESHOLD = 0; // lowest # available databytes in FIFO
 /*************************************************/
 //------------ Handle reset signals -------------//
 /*************************************************/
-wire reset; // internal reset
+wire reset; // internal reset, FrontPanel
 wire ext_rst;
 wire rst;
 assign rst = reset | ext_rst;
@@ -67,7 +67,7 @@ wire [FIFO_COUNT_WIDTH-1:0] wr_data_count;
 wire fifo_clk;
 fifo_adc fifo_adc_0(
   .rst(rst),
-  .wr_clk(adc_clk),
+  .wr_clk(~adc_clk), // data will be avaible for reading from ADC on negedge of adc_clock
   .rd_clk(fifo_clk),
   .din(adc_code_in), // 10 bit;
   .wr_en(1'b1),
@@ -122,6 +122,7 @@ assign i2c_scl = 1'bz;
 assign hi_muxsel = 1'b0;
 
 assign reset = ep00wire[0];
+assign ep20wire[0] = fifo_empty;
 
 wire [17*2-1:0] ok2x;
 
