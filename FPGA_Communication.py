@@ -4,7 +4,8 @@ Created on Sep 20, 2016
 @author: Alphacore Engineer 1
 '''
 from ok.ok import PLL22150
-
+import sys
+import time
 
 """
 NOTE (for later, or others):
@@ -57,25 +58,31 @@ from tkinter import filedialog as FD
 from Utils import MBox
 
 class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
+    """
+    Class: FPGA_Communication
+    Inherit: ok.okCFrontPanel and ok.okCPLL22393
+    Inheritance was chosen over composition for two reasons.
+    1) You can reference the super classes from this class directly
+    2) Learning experience (if comp is necessary, I will change this class)
+    """
+    
     def __init__(self):
         super().__init__()
-        MB = MBox()
-        try:
-            self.OpenBySerial()
-        except:
-            MB.showerror('Connection error', connect_to_device_error_text)
-            
-            """
-            del self
-            return none 
-            so that there is no reference available to the current
-            instance of FPGA_Communication. With no reference, python will
-            garbage collect the object.
-            """
-            
+        self.MB = MBox()
+        
+        if (self.NoError != self.OpenBySerial("")):
+            self.MB.showerror('Connection error', connect_to_device_error_text)
             del self
             return None
-        
+    
+    def testConnection(self):
+        if (self.NoError != self.OpenBySerial("")):
+            self.MB.showerror('Connection error', connect_to_device_error_text)
+            return False
+        else:
+            self.MB.showerror('Connection Success', connect_to_device_success_text)
+            return True
+    
     def readPipe(self, epAddr=0xA0, bufSize=128):
         buf = bytearray(bufSize)
         self.ReadFromPipeOut(epAddr, buf)
@@ -111,7 +118,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                     options['title'] = 'Open FPGA .bit file.'
                     fileName = FD.askopenfilename(mode='r', **file_opt)
                 except:
-                    MB.showerror('Configure Error', configure_FPGA_error_text + 
+                    self.MB.showerror('Configure Error', configure_FPGA_error_text + 
                                  data_file_error_text)
             else:
                 self.ConfigureFPGA(fileName)
@@ -119,19 +126,64 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         else:
             pass
 
+    def openDataFileNameWrite(self, extension='.txt', mode='wb'):
+        file_opt = options = {}
+        options['defaultextension'] = '{}'.format(extension)
+        options['filetypes'] = [('{} File'.format(extension), '{}'.format(extension)), ('all files', '.*')]
+        options['initialdir'] = 'C:\\'
+        options['initialfile'] = 'ADC_results{}'.format(extension)
+        options['title'] = 'Open FPGA {} file.'.format(extension)
+        return FD.askopenfilename(mode='{}'.format(mode), **file_opt)
     
+    def testADC(self, samples=2048, timeout=1, slowStart=True):
+        """
+        samples=number values read from FPGA fifo
+        timeout(ms)=time to wait for fifo to be not empty (in milliseconds)
+        slowStart=boolean whether or not timeout should be applied immediate. Keep
+                  True if external source is not on before this code is ran. 
+        """
+        self.configureFPGA()
+        timestart = 0
+        data_file = open(self.openDataFileNameWrite())
+        for i in range(samples):
+            # Take 'samples' samples
+            while (self.readWire(0x20, 1)):
+                """
+                0x20<0> == fifo_empty signal
+                Wait until the fifo is no longer empty
+                """
+                if slowStart == False:
+                    if ((time.time() - timestart)*1000 >= timeout):
+                        self.MB.showerror('Timeout', test_adc_timeout_error_text)
+                        break
+                    else:
+                        timestart = time.time()
+                else:
+                    continue
+                
+            slowStart = False
+            
+            data_file.write(self.readPipe(bufSize=10))
+            
+            
     def __repr__(self):
-        return FPGA_Communication_repr_text.format(self.GetDeviceMajorVersion(), 
-                   self.GetDeviceMinorVersion(),
-                   self.GetSerialNumber(),
-                   self.GetDeviceID(),
-                   self.GetBoardModel(), 
-                   self.IsFrontPanelEnabled())
+        self.devInfo = ok.okTDeviceInfo()
+        if (self.NoError != self.GetDeviceInfo(self.devInfo)):
+            self.MB.showerror('No Device Info', retrieve_device_info_error_text)
+            return 'No Device Info'
+        else:
+            return FPGA_Communication_repr_text.format(self.GetDeviceMajorVersion(), 
+                       self.GetDeviceMinorVersion(),
+                       self.GetSerialNumber(),
+                       self.GetDeviceID(),
+                       self.GetBoardModel(), 
+                       self.IsFrontPanelEnabled())
 
 
-
-
-
-
+xem = FPGA_Communication()
+if xem == None:
+    sys.exit()
+else:
+    xem.testADC()
 
 
