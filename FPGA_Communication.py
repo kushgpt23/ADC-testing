@@ -6,6 +6,7 @@ Created on Sep 20, 2016
 from ok.ok import PLL22150
 import sys
 import time
+import timeit
 
 """
 NOTE (for later, or others):
@@ -70,6 +71,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
     def __init__(self):
         super().__init__()
         self.MB = MBox()
+        self.hasBeenConfigured = False
         
         if (self.NoError != self.OpenBySerial("")):
             self.MB.showerror('Connection error', connect_to_device_error_text)
@@ -122,8 +124,10 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                     self.MB.showerror('File Error', data_file_error_text)
                     
                 self.ConfigureFPGA(fileName)
+                self.hasBeenConfigured = True
             else:
                 self.ConfigureFPGA(fileName)
+                self.hasBeenConfigured = True
                 
         else:
             # configure FPGA from flash here
@@ -140,14 +144,15 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         root.withdraw()
         return FD.askopenfilename(**file_opt)
     
-    def testADC(self, fileName, samples=2048, timeout=1, slowStart=True):
+    def testADC(self, fileName=None, samples=2048, timeout=1, slowStart=True):
         """
         samples=number values read from FPGA fifo
         timeout(ms)=time to wait for fifo to be not empty (in milliseconds)
         slowStart=boolean whether or not timeout should be applied immediate. Keep
                   True if external source is not on before this code is ran. 
         """
-        self.configureFPGA(fileName)
+        if not self.hasBeenConfigured:
+            self.configureFPGA(fileName)
         timestart = 0
         data_file = open(self.openDataFileNameWrite())
         for i in range(samples):
@@ -184,16 +189,21 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                        self.GetBoardModel(), 
                        self.IsFrontPanelEnabled())
 
-
-xem = FPGA_Communication()
-if xem == None:
-    print("no connect")
-    sys.exit()
-else:
-    """
+def initFPGA():
     fileName = "adc_testing_top.bit"
-    xem.testADC(fileName)
-    """
-    print(xem.readWire())
+    xem = FPGA_Communication()
+    if xem == None:
+        print("no connect")
+        return None
+    else:
+        xem.configureFPGA(fileName)
+        return xem
+
+xem = initFPGA()
+
+#xem.testADC()
+print(xem.readWire())
+
+    
 
 
