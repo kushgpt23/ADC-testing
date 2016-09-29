@@ -54,6 +54,7 @@ Pipe          | 16bit
 """
 
 from MessageTexts import *
+from tkinter import Tk
 from tkinter import filedialog as FD
 from Utils import MBox
 
@@ -108,7 +109,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
     def configureFPGA(self, fileName=None, fromFlash=False):
         if not fromFlash:
             
-            if fromFlash == None:
+            if fileName == None:
                 try:
                     file_opt = options = {}
                     options['defaultextension'] = '.bit'
@@ -118,36 +119,40 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                     options['title'] = 'Open FPGA .bit file.'
                     fileName = FD.askopenfilename(mode='r', **file_opt)
                 except:
-                    self.MB.showerror('Configure Error', configure_FPGA_error_text + 
-                                 data_file_error_text)
+                    self.MB.showerror('File Error', data_file_error_text)
+                    
+                self.ConfigureFPGA(fileName)
             else:
                 self.ConfigureFPGA(fileName)
                 
         else:
+            # configure FPGA from flash here
             pass
 
-    def openDataFileNameWrite(self, extension='.txt', mode='wb'):
+    def openDataFileNameWrite(self, extension='.txt'):
         file_opt = options = {}
         options['defaultextension'] = '{}'.format(extension)
         options['filetypes'] = [('{} File'.format(extension), '{}'.format(extension)), ('all files', '.*')]
         options['initialdir'] = 'C:\\'
         options['initialfile'] = 'ADC_results{}'.format(extension)
         options['title'] = 'Open FPGA {} file.'.format(extension)
-        return FD.askopenfilename(mode='{}'.format(mode), **file_opt)
+        root = Tk()
+        root.withdraw()
+        return FD.askopenfilename(**file_opt)
     
-    def testADC(self, samples=2048, timeout=1, slowStart=True):
+    def testADC(self, fileName, samples=2048, timeout=1, slowStart=True):
         """
         samples=number values read from FPGA fifo
         timeout(ms)=time to wait for fifo to be not empty (in milliseconds)
         slowStart=boolean whether or not timeout should be applied immediate. Keep
                   True if external source is not on before this code is ran. 
         """
-        self.configureFPGA()
+        self.configureFPGA(fileName)
         timestart = 0
         data_file = open(self.openDataFileNameWrite())
         for i in range(samples):
             # Take 'samples' samples
-            while (self.readWire(0x20, 1)):
+            while (self.readWire(0x20)):
                 """
                 0x20<0> == fifo_empty signal
                 Wait until the fifo is no longer empty
@@ -182,8 +187,13 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
 
 xem = FPGA_Communication()
 if xem == None:
+    print("no connect")
     sys.exit()
 else:
-    xem.testADC()
+    """
+    fileName = "adc_testing_top.bit"
+    xem.testADC(fileName)
+    """
+    print(xem.readWire())
 
 
