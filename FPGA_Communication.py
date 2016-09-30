@@ -58,6 +58,7 @@ from MessageTexts import *
 from tkinter import Tk
 from tkinter import filedialog as FD
 from Utils import MBox
+import sys
 
 class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
     """
@@ -145,6 +146,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         return FD.askopenfilename(**file_opt)
     
     def testADC(self, fileName=None, samples=2048, timeout=1, slowStart=True):
+        
         """
         samples=number values read from FPGA fifo
         timeout(ms)=time to wait for fifo to be not empty (in milliseconds)
@@ -153,27 +155,32 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         """
         if not self.hasBeenConfigured:
             self.configureFPGA(fileName)
-        timestart = 0
-        data_file = open(self.openDataFileNameWrite())
+        
+        data_file = open(self.openDataFileNameWrite(), 'w')
         for i in range(samples):
             # Take 'samples' samples
-            while (self.readWire(0x20)):
+            fifo_empty = self.readWire(0x20)
+            timestart = time.time()
+            while (fifo_empty):
                 """
                 0x20<0> == fifo_empty signal
                 Wait until the fifo is no longer empty
                 """
+                
                 if slowStart == False:
                     if ((time.time() - timestart)*1000 >= timeout):
                         self.MB.showerror('Timeout', test_adc_timeout_error_text)
-                        break
-                    else:
-                        timestart = time.time()
-                else:
-                    continue
+                        sys.exit()
+                
+                fifo_empty = self.readWire(0x20)
                 
             slowStart = False
             
-            data_file.write(self.readPipe(bufSize=10))
+            data = str(int.from_bytes(self.readPipe(bufSize=1), byteorder='big'))
+            data_file.write(data)
+            print("data: {}".format(data))
+            
+        self.MB.showinfo('Write complete', results_written_complete_text)
             
             
     def __repr__(self):
@@ -200,9 +207,11 @@ def initFPGA():
         return xem
 
 xem = initFPGA()
+xem.manualReset()
 
-#xem.testADC()
-print(xem.readWire())
+#xem.testADC(timeout=1000)
+while(1):
+    print("debugOut: {}".format(xem.readWire(0x21)))
 
     
 
