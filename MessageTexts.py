@@ -36,3 +36,7 @@ FrontPanel Enabled?: {5}
 test_adc_timeout_error_text = """
 Test ADC communication has timed out.
 """
+
+results_written_complete_text = """
+The data file write operation has completed.
+"""
