@@ -19,7 +19,7 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module ADC_Testing_Top(
-	input clk,
+	input clk, 
 	input adc_clk,
 	input [PRECISION-1:0] adc_code_in,
 	input ext_reset,
@@ -28,11 +28,11 @@ module ADC_Testing_Top(
 	input  wire [7:0]  hi_in,
 	output wire [1:0]  hi_out,
 	inout  wire [15:0] hi_inout,
-	inout wire hi_aa,
+	inout wire hi_aa,    
 	
 	output wire i2c_sda,
 	output wire i2c_scl,
-	output wire hi_muxsel
+	output wire hi_muxsel 
 );
 
 parameter PRECISION = 10;
@@ -71,7 +71,8 @@ fifo_adc fifo_adc_0(
   .rd_clk(fifo_clk),
   .din(adc_code_in), // 10 bit;
   .wr_en(1'b1),
-  .rd_en(rd_en),
+  //.rd_en(rd_en),
+  .rd_en(1'b1),
   .dout(adc_code_out), // 10 bit;
   .full(fifo_full),
   .empty(fifo_empty),
@@ -149,6 +150,12 @@ okPipeOut pipeA0 (
 	.ep_datain(epA0pipe), // data from FIFO
 	.ep_read(epA0read) // enable rd_en at FIFO
 );
+
+// DEBUG
+wire debugOut;
+assign debugOut = adc_code_in[0] & adc_code_in[1];
+assign ep20wire[1] = debugOut;
+// DEBUG
 
 okWireOut wire20 (
 	.ok1(ok1),
