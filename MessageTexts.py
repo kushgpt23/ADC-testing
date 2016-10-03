@@ -17,10 +17,26 @@ connect_to_device_error_text = """
 Device could not be opened. Is one connected? 
 """
 
+connect_to_device_success_text = """
+Device was successfully connected.
+"""
+
+retrieve_device_info_error_text = """
+Unable to retrieve device information.
+"""
+
 FPGA_Communication_repr_text = """
 Device firmware version: {0}.{1}
 Device serial number: {2}
 Device ID: {3}
 Board model: {4}
 FrontPanel Enabled?: {5}
+"""
+
+test_adc_timeout_error_text = """
+Test ADC communication has timed out.
+"""
+
+results_written_complete_text = """
+The data file write operation has completed.
 """

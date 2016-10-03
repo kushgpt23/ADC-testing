@@ -16,6 +16,12 @@ class MBox():
         root = Tk()
         root.withdraw()
         messagebox.showerror(title, message)
+    
+    @staticmethod
+    def showinfo(title, message):
+        root = Tk()
+        root.withdraw()
+        messagebox.showinfo(title, message)
 
 def extractData(dataFileName=None, oneLine=False, samplesPerCode=1):
     if dataFileName is None:
