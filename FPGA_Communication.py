@@ -57,8 +57,14 @@ Pipe          | 16bit
 from MessageTexts import *
 from tkinter import Tk
 from tkinter import filedialog as FD
-from Utils import MBox
+from Utils import MBox, Conversions
 import sys
+
+ADC_DATA_ADDR = 0xA0
+FIFO_DATA_COUNT_ADDR = 0xA1
+FIFO_EMPTY_ADDR = 0x20 # bit [0]
+DEBUG_ADDR = 0x20 # bit [1]
+RESET_ADDR = 0x00 # bit [0]
 
 class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
     """
@@ -73,6 +79,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         super().__init__()
         self.MB = MBox()
         self.hasBeenConfigured = False
+        self.CV = Conversions()
         
         if (self.NoError != self.OpenBySerial("")):
             self.MB.showerror('Connection error', connect_to_device_error_text)
@@ -87,14 +94,25 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
             self.MB.showerror('Connection Success', connect_to_device_success_text)
             return True
     
-    def readPipe(self, epAddr=0xA0, bufSize=128):
+    def readPipe(self, epAddr=0xA0, bufSize=1):
         buf = bytearray(bufSize)
         self.ReadFromPipeOut(epAddr, buf)
         return buf
     
-    def readWire(self, epAddr=0x20):
+    def readWire(self, epAddr=0x20, binary=False, bits=None):
         self.UpdateWireOuts()
-        return self.GetWireOutValue(epAddr)
+        wireVal = self.GetWireOutValue(epAddr)
+        if binary == False:
+            return wireVal
+        else:
+            wireVal = format(wireVal, 'b')
+            if bits == None:
+                return wireVal
+            else:
+                l = len(wireVal)-1
+                bitVal = [wireVal[l-x] for x in bits]
+                return bitVal
+                
     
     def writeWire(self, epAddr=0x00, val=0x00, mask=None):
         if mask == None:
@@ -103,7 +121,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
             self.SetWireInValue(epAddr, val, mask)
         self.UpdateWireIns()
     
-    def manualReset(self, epAddr=0x00, mask=0x01):
+    def manualReset(self, epAddr=RESET_ADDR, mask=0x01):
         self.SetWireInValue(epAddr, 0xff, mask)
         self.UpdateWireIns()
         self.SetWireInValue(epAddr, 0x00, mask)
@@ -145,7 +163,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         root.withdraw()
         return FD.askopenfilename(**file_opt)
     
-    def testADC(self, fileName=None, samples=2048, timeout=1, slowStart=True):
+    def testADC(self, fileName=None, samples=2048, bufSize=1, timeout=1, slowStart=True):
         
         """
         samples=number values read from FPGA fifo
@@ -156,30 +174,52 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         if not self.hasBeenConfigured:
             self.configureFPGA(fileName)
         
-        data_file = open(self.openDataFileNameWrite(), 'w')
+        try:
+            data_file = open(self.openDataFileNameWrite(), 'w')
+        except FileNotFoundError:
+            self.MB.showerror('File Error', data_file_error_text)
+            sys.exit()
         for i in range(samples):
             # Take 'samples' samples
-            fifo_empty = self.readWire(0x20)
-            timestart = time.time()
-            while (fifo_empty):
+            
+            
+            if bufSize <= 1:
+                timeout_senti = self.readWire(FIFO_EMPTY_ADDR)
                 """
                 0x20<0> == fifo_empty signal
                 Wait until the fifo is no longer empty
                 """
+            else:
+                fifo_data_count = self.CV.ba2int(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR))
+                timeout_senti = fifo_data_count < bufSize
+                """
+                0xA1 == fifo_data_count signal
+                Wait until the fifo has enough data in it
+                """
+                
+            timestart = time.time()
+            while (timeout_senti):
                 
                 if slowStart == False:
                     if ((time.time() - timestart)*1000 >= timeout):
                         self.MB.showerror('Timeout', test_adc_timeout_error_text)
+                        data_file.write(test_adc_timeout_error_text)
+                        data_file.close()
                         sys.exit()
                 
-                fifo_empty = self.readWire(0x20)
-                
-            slowStart = False
+                if bufSize <= 1:
+                    timeout_senti = self.readWire(FIFO_EMPTY_ADDR)
+                else:
+                    fifo_data_count = self.CV.ba2int(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR))
+                    timeout_senti = fifo_data_count < bufSize
+            slowStart = False            
             
-            data = str(int.from_bytes(self.readPipe(bufSize=1), byteorder='big'))
+            
+            data = str(self.CV.ba2int(self.readPipe(epAddr = ADC_DATA_ADDR, 
+                                                    bufSize=bufSize)))
             data_file.write(data)
             print("data: {}".format(data))
-            
+        data_file.close()
         self.MB.showinfo('Write complete', results_written_complete_text)
             
             
@@ -204,14 +244,22 @@ def initFPGA():
         return None
     else:
         xem.configureFPGA(fileName)
+        print(xem)
         return xem
+
+
 
 xem = initFPGA()
 xem.manualReset()
 
-#xem.testADC(timeout=1000)
+#xem.testADC(samples=512, bufSize=10, timeout=1000)
+
+#while(1):
+#    print("debugOut: {}".format(xem.readWire(DEBUG_ADDR, True, [1])))
+
+ADC_CLOCK_COUNT_ADDR = 0xA2
 while(1):
-    print("debugOut: {}".format(xem.readWire(0x21)))
+    print("adc_clock_count: {}".format(xem.readPipe(ADC_CLOCK_COUNT_ADDR)))
 
     
 
