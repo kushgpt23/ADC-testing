@@ -47,7 +47,11 @@ parameter UNDERFLOW_THRESHOLD = 0; // lowest # available databytes in FIFO
 wire reset; // internal reset, FrontPanel
 wire ext_rst;
 wire rst;
-assign rst = reset | ext_rst;
+// DEBUG
+//assign rst = reset | ext_rst;
+assign rst = reset;
+// DEBUG
+
 Debounce debounce_0(
 	.clk(clk),
 	.signalIn(ext_reset),
@@ -77,7 +81,7 @@ fifo_adc fifo_adc_0(
   .full(fifo_full),
   .empty(fifo_empty),
   .rd_data_count(rd_data_count), // 12 bit;
-  .wr_data_count(wr_data_count) // 12 bit;
+  .wr_data_count(wr_data_count) // 12 bit; provides how many words are in the fifo, how full is the fifo
 );
 
 wire underflowflag;
@@ -112,21 +116,16 @@ wire ti_clk;
 wire [30:0] ok1;
 wire [16:0] ok2;
 
-// Endpoint connections:
-wire [15:0] ep00wire; // wire in
-wire [15:0] ep20wire; // wire out
-wire [15:0] epA0pipe; // pipe out
-wire epA0read; // pipe out read signal from host
-
+// OK uC comm.
 assign i2c_sda = 1'bz;
 assign i2c_scl = 1'bz;
 assign hi_muxsel = 1'b0;
 
-assign reset = ep00wire[0];
-assign ep20wire[0] = fifo_empty;
+// HDL bus
+parameter EP_OUTPUTS = 4;
+wire [17*EP_OUTPUTS-1:0] ok2x;
 
-wire [17*2-1:0] ok2x;
-
+// Host to HDL connection module
 okHost hostIF (
 	.hi_in(hi_in),
 	.hi_out(hi_out),
@@ -137,12 +136,16 @@ okHost hostIF (
 	.ok2(ok2)
 );
 
+wire [15:0] ep00wire; // wire in
+assign reset = ep00wire[0];
 okWireIn wire00 (
 	.ok1(ok1),
 	.ep_addr(8'h00),
 	.ep_dataout(ep00wire)
 );
 
+wire [15:0] epA0pipe; // pipe out; adc data from fifo
+wire epA0read; // pipe out read signal from host
 okPipeOut pipeA0 (
 	.ok1(ok1),
 	.ok2(ok2x[0*17 +: 17]),
@@ -151,20 +154,48 @@ okPipeOut pipeA0 (
 	.ep_read(epA0read) // enable rd_en at FIFO
 );
 
+wire [15:0] epA1pipe; // pipe out; wr_data_count
+assign epA1pipe = wr_data_count;
+wire epA1read;
+okPipeOut pipeA1 (
+	.ok1(ok1),
+	.ok2(ok2x[1*17 +: 17]),
+	.ep_addr(8'hA1),
+	.ep_datain(epA1pipe), // data from FIFO
+	.ep_read(epA1read) // enable rd_en at FIFO
+);
+
+
+wire [15:0] ep20wire; // wire out
+assign ep20wire[0] = fifo_empty;
 // DEBUG
 wire debugOut;
 assign debugOut = adc_code_in[0] & adc_code_in[1];
 assign ep20wire[1] = debugOut;
 // DEBUG
-
 okWireOut wire20 (
 	.ok1(ok1),
-	.ok2(ok2x[1*17 +: 17]),
+	.ok2(ok2x[2*17 +: 17]),
 	.ep_addr(8'h20),
 	.ep_datain(ep20wire)
 );
 
-okWireOR #(.N(2)) wireOR(
+// DEBUG
+reg [15:0] adc_clk_count = {16 {1'b0}};
+wire [15:0] epA2pipe;
+assign epA2pipe = adc_clk_count;
+wire epA2read;
+okPipeOut pipeA2 (
+	.ok1(ok1),
+	.ok2(ok2x[3*17 +: 17]),
+	.ep_addr(8'hA2),
+	.ep_datain(epA2pipe), // data from FIFO
+	.ep_read(epA2read) // enable rd_en at FIFO
+);
+// DEBUG
+
+
+okWireOR #(.N(EP_OUTPUTS)) wireOR(
 	.ok2(ok2),
 	.ok2s(ok2x)
 );
@@ -173,22 +204,39 @@ okWireOR #(.N(2)) wireOR(
 //------------- Readback ADC data ---------------//
 /*************************************************/
 
+/*
 assign epA0pipe = ~underflowflag ? 
 						{{16-PRECISION {1'b0}}, adc_code_out} :
 						{16 {1'b0}};
+*/
+
+assign epA0pipe = {{16-PRECISION {1'b0}}, adc_code_out};
 
 assign fifo_clk = ~ti_clk; // page 50 of FrontPanel-UM.pdf
 
+/*
 always @(posedge ti_clk) begin
 	if (epA0read) begin
 		rd_en <= ~underflowflag;
 	end
 end
+*/
 
 /*************************************************/
 //------------- Write in ADC data ---------------//
 /*************************************************/
 
 // Writing data is all taken care of via the ADC signals
+
+
+/*************************************************/
+//------------------- DEBUG ---------------------//
+/*************************************************/
+
+// Using this buffer to verify that the ADC clock is actually coming in and being detected.
+always @(posedge adc_clk) begin
+	adc_clk_count = adc_clk_count + 1'b1;
+end
+
 
 endmodule
