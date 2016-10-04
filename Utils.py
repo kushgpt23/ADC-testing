@@ -26,13 +26,19 @@ class MBox:
 class Conversions:
     
     def __init__(self, bytesInWord=2):
+        self.setBytesInWord(bytesInWord)
+    
+    def setBytesInWord(self, bytesInWord):
         self.bytesInWord = bytesInWord
         self.byteChunks = []
         for b in range(self.bytesInWord):
             self.byteChunks.append(255**b)
-    
-    
+        
+        
     def ba2ia(self, byteArray, byteorder='big'):
+        """
+        bytearray to int array
+        """
         iarr = []
         word = 0
         i = 0
