@@ -7,6 +7,7 @@ from ok.ok import PLL22150
 import sys
 import time
 import timeit
+from asyncio.windows_utils import BUFSIZE
 
 """
 NOTE (for later, or others):
@@ -59,6 +60,7 @@ from tkinter import Tk
 from tkinter import filedialog as FD
 from Utils import MBox, Conversions
 import sys
+import math
 
 ADC_DATA_ADDR = 0xA0
 FIFO_DATA_COUNT_ADDR = 0xA1
@@ -184,7 +186,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
             self.MB.showerror('File Error', data_file_error_text)
             sys.exit()
             
-        for i in range(samples):
+        for i in range(math.ceil(samples/bufSize)):
             # Take 'samples' samples
             
             
@@ -216,7 +218,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                     timeout_senti = '1' == self.readWire(FIFO_EMPTY_ADDR, binary=True, bits=[1])
                 else:
                     fifo_data_count = self.CV.ba2ia(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR, bufSize=bufSize))[0]
-                    print(fifo_data_count)
+                    print("fifo_data_count: {}".format(str(fifo_data_count)))
                     timeout_senti = fifo_data_count < bufSize
                     
             slowStart = False            
@@ -259,7 +261,7 @@ def initFPGA():
 xem = initFPGA()
 xem.manualReset()
 
-xem.testADC(samples=512, bufSize=1, timeout=1000)
+xem.testADC(samples=512, bufSize=2, timeout=1000)
 
 #while(1):
 #    print("debugOut: {}".format(xem.readWire(DEBUG_ADDR, True, [1])))
