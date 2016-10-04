@@ -95,6 +95,9 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
             return True
     
     def readPipe(self, epAddr=0xA0, bufSize=1):
+        # bytearray assumes 8 bit byte
+        # pipeout byte is 16 bits
+        bufSize = 2*bufSize
         buf = bytearray(bufSize)
         self.ReadFromPipeOut(epAddr, buf)
         return buf
@@ -111,6 +114,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
             else:
                 l = len(wireVal)-1
                 bitVal = [wireVal[l-x] for x in bits]
+                bitVal = ''.join(bitVal)
                 return bitVal
                 
     
@@ -179,18 +183,19 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
         except FileNotFoundError:
             self.MB.showerror('File Error', data_file_error_text)
             sys.exit()
+            
         for i in range(samples):
             # Take 'samples' samples
             
             
             if bufSize <= 1:
-                timeout_senti = self.readWire(FIFO_EMPTY_ADDR)
+                timeout_senti = '1' == self.readWire(FIFO_EMPTY_ADDR, binary=True, bits=[1])
                 """
                 0x20<0> == fifo_empty signal
                 Wait until the fifo is no longer empty
                 """
             else:
-                fifo_data_count = self.CV.ba2int(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR))
+                fifo_data_count = self.CV.ba2ia(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR))[0]
                 timeout_senti = fifo_data_count < bufSize
                 """
                 0xA1 == fifo_data_count signal
@@ -208,17 +213,19 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                         sys.exit()
                 
                 if bufSize <= 1:
-                    timeout_senti = self.readWire(FIFO_EMPTY_ADDR)
+                    timeout_senti = '1' == self.readWire(FIFO_EMPTY_ADDR, binary=True, bits=[1])
                 else:
-                    fifo_data_count = self.CV.ba2int(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR))
+                    fifo_data_count = self.CV.ba2ia(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR, bufSize=bufSize))[0]
+                    print(fifo_data_count)
                     timeout_senti = fifo_data_count < bufSize
+                    
             slowStart = False            
             
-            
-            data = str(self.CV.ba2int(self.readPipe(epAddr = ADC_DATA_ADDR, 
-                                                    bufSize=bufSize)))
-            data_file.write(data)
+            data = self.CV.ba2ia(self.readPipe(epAddr = ADC_DATA_ADDR, bufSize=bufSize))
             print("data: {}".format(data))
+            for d in data:
+                data_file.write(str(d))
+            
         data_file.close()
         self.MB.showinfo('Write complete', results_written_complete_text)
             
@@ -252,14 +259,15 @@ def initFPGA():
 xem = initFPGA()
 xem.manualReset()
 
-#xem.testADC(samples=512, bufSize=10, timeout=1000)
+xem.testADC(samples=512, bufSize=1, timeout=1000)
 
 #while(1):
 #    print("debugOut: {}".format(xem.readWire(DEBUG_ADDR, True, [1])))
 
-ADC_CLOCK_COUNT_ADDR = 0xA2
-while(1):
-    print("adc_clock_count: {}".format(xem.readPipe(ADC_CLOCK_COUNT_ADDR)))
+
+#ADC_CLOCK_COUNT_ADDR = 0xA2
+#while(1):
+#    print("adc_clock_count: {}".format(xem.readPipe(ADC_CLOCK_COUNT_ADDR)))
 
     
 
