@@ -9,7 +9,7 @@ from tkinter import messagebox
 from tkinter import Tk
 from MessageTexts import *
 
-class MBox():
+class MBox:
     
     @staticmethod
     def showerror(title, message):
@@ -22,6 +22,36 @@ class MBox():
         root = Tk()
         root.withdraw()
         messagebox.showinfo(title, message)
+
+class Conversions:
+    
+    def __init__(self, bytesInWord=2):
+        self.bytesInWord = bytesInWord
+        self.byteChunks = []
+        for b in range(self.bytesInWord):
+            self.byteChunks.append(255**b)
+    
+    
+    def ba2ia(self, byteArray, byteorder='big'):
+        iarr = []
+        word = 0
+        i = 0
+        ix = 0
+        for b in byteArray:
+            if i == self.bytesInWord-1:
+                word += b*self.byteChunks[ix]
+                iarr.append(word)
+                i = 0
+                word = 0
+                ix = 0
+            else:
+                word += b*self.byteChunks[ix]
+                ix += 1
+                i += 1
+                print(word)
+                
+            
+        return iarr
 
 def extractData(dataFileName=None, oneLine=False, samplesPerCode=1):
     if dataFileName is None:
