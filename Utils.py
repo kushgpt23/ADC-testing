@@ -48,7 +48,6 @@ class Conversions:
                 word += b*self.byteChunks[ix]
                 ix += 1
                 i += 1
-                print(word)
                 
             
         return iarr
