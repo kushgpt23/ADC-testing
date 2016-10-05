@@ -7,7 +7,6 @@ from ok.ok import PLL22150
 import sys
 import time
 import timeit
-from asyncio.windows_utils import BUFSIZE
 
 """
 NOTE (for later, or others):
@@ -226,7 +225,7 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
             data = self.CV.ba2ia(self.readPipe(epAddr = ADC_DATA_ADDR, bufSize=bufSize))
             print("data: {}".format(data))
             for d in data:
-                data_file.write(str(d))
+                data_file.write(str(d) +'\n')
             
         data_file.close()
         self.MB.showinfo('Write complete', results_written_complete_text)
