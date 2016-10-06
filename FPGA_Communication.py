@@ -1,7 +1,7 @@
 '''
 Created on Sep 20, 2016
 
-@author: Alphacore Engineer 1
+@author: Max Ruiz
 '''
 
 
