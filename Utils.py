@@ -1,7 +1,7 @@
 '''
 Created on Sep 16, 2016
 
-@author: Alphacore Engineer 1
+@author: Max Ruiz
 '''
 from math import log10, pi
 from tkinter import filedialog as FD
