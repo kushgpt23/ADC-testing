@@ -30,5 +30,6 @@ Verilog
 
 #Operation
 
+From the host side, simply use the testADC function. Using the parameters, you can adjust sample size and buffer size.
 
 
