@@ -7,7 +7,7 @@ Opal Kelly
  * 5Volt, 2+Amp power supply (wall wort)
  * USB-B cable
 * Required Software
- * FrontPanel.exe
+ * FrontPanel.exe which includes:
   * Drivers
   * API
   * Documentation
@@ -18,6 +18,9 @@ Python 3.5 (Host)
   * FPGA_Communication.py
   * Utils.py
   * MessageTexts.py
+  * ep_addresses.py
+* Required 3rd party libraries
+ * ok (front panel API)
 
 
 Verilog 
