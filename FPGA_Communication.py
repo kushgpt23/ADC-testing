@@ -3,33 +3,30 @@ Created on Sep 20, 2016
 
 @author: Alphacore Engineer 1
 '''
-from ok.ok import PLL22150
-import sys
-import time
-import timeit
+
 
 """
 NOTE (for later, or others):
 To install the 'ok' package for you python environment to use, you must download
 the FrontPanel.exe package provided by Lav/Kush/Max (I can't find on the website
-where the download button is, I think it comes with a purchased device). 
+where the download button is, I think it comes with a purchased device).
 
 Then, find the API folder, find the python folder, and find you python version.
 Within that folder, there will be 4 files which you will copy into the site-pacakges
 folder within your python.exe folder. Ex: C:\Anaconda3\Lib\site-packages
-(Anaconda is a my version of a python package). 
+(Anaconda is a my version of a python package).
 
-Then make a folder called "ok" within the site-packages folder and paste the 4 
-files from the FrontPanel folder. Then run the __init__.py file using your 
+Then make a folder called "ok" within the site-packages folder and paste the 4
+files from the FrontPanel folder. Then run the __init__.py file using your
 python.exe program and it should be available for you to use now.
 """
 
-import ok
+
 """
 http://assets00.opalkelly.com/library/FrontPanel-UM.pdf
 page 34
 (Max's computer)
-API reference 
+API reference
 C:\Program Files\Opal Kelly\FrontPanelUSB\Documentation
 FrontPanelAPI.chm
 """
@@ -54,56 +51,98 @@ Endpoint Type | USB 2.0
 Pipe          | 16bit
 """
 
+import ok
+import time
 from MessageTexts import *
-from tkinter import Tk
-from tkinter import filedialog as FD
-from Utils import MBox, Conversions
+from Utils import MBox, FDialog, Conversions
 import sys
 import math
+from ep_address import *
 
-ADC_DATA_ADDR = 0xA0
-FIFO_DATA_COUNT_ADDR = 0xA1
-FIFO_EMPTY_ADDR = 0x20 # bit [0]
-DEBUG_ADDR = 0x20 # bit [1]
-RESET_ADDR = 0x00 # bit [0]
 
 class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
     """
     Class: FPGA_Communication
-    Inherit: ok.okCFrontPanel and ok.okCPLL22393
+    Inherit: ok.okCFrontPanel,ok.okCPLL22393
+    Composition: Conversions
     Inheritance was chosen over composition for two reasons.
     1) You can reference the super classes from this class directly
     2) Learning experience (if comp is necessary, I will change this class)
+    Description:
+        Use this class to communicate with the Opal Kelly (OK) board as if you were using
+        the inherited classes. There are macro methods in this class, such as
+        writeWire, readWire, and readPipe that perform extra tasks before they
+        communication to the OK board; with this in mind, use this classes version
+        of those methods. For methods such as controlling the PLL on the OK board,
+        you can use this class to invoke the methods from the OK API for the PLL.
     """
-    
+
     def __init__(self):
-        super().__init__()
-        self.MB = MBox()
+        super().__init__() # inherit and initialize the parent classes using the method super()
+        self.MB = MBox() # Message box for popup warnings or information
+        self.FD = FDialog()
         self.hasBeenConfigured = False
+
+        # Using composition, create an instance of Conversions() for the later
+        # purpose of converting bytearrays (the return data type of readPipe)
+        # into a list of integers.
         self.CV = Conversions()
-        
+
+        # Check for a connection to the OK board. If there is a connection: continue,
+        # if there is NO connection, delete the reference to this class and return
+        # 'None' type as the instance of this class.
         if (self.NoError != self.OpenBySerial("")):
             self.MB.showerror('Connection error', connect_to_device_error_text)
             del self
             return None
-    
+
     def testConnection(self):
+        """
+        Method: testConnection
+        Params:
+        Returns: boolean
+        Description: Option for re-testing the connection to the OK board.
+        """
         if (self.NoError != self.OpenBySerial("")):
             self.MB.showerror('Connection error', connect_to_device_error_text)
             return False
         else:
             self.MB.showerror('Connection Success', connect_to_device_success_text)
             return True
-    
+
     def readPipe(self, epAddr=0xA0, bufSize=1):
+        """
+        Method: readPipe
+        Params: int epAddr=0xA0: pipe address
+            int bufSize=1: consecutive reads from pipe link
+        Returns: (bytearray)buf
+        Descriptions: Sets up a bytearray and corrects the bufSize to accomodate
+            the difference in the 8-bit python bufSize, and the 16-bit pipe bufSize.
+        """
         # bytearray assumes 8 bit byte
         # pipeout byte is 16 bits
         bufSize = 2*bufSize
         buf = bytearray(bufSize)
         self.ReadFromPipeOut(epAddr, buf)
         return buf
-    
+
     def readWire(self, epAddr=0x20, binary=False, bits=None):
+        """
+        Method: readWire
+        Params: int epAddr=0x20: address of wire
+            bool binary=False: determine return representation of wire
+            list bits=None: list of bits in wire to return eg. [b] or [m:n]
+        Returns: if(binary==False): int
+                 elif (binary==True and bits==None): str
+                 elif (binary==True and bits==[b]): str
+                 elif (binary==True and bits==[m:n]): str
+        Description: Depending on the return method/type you are looking for
+            this method will return:
+            +full 16-bit wire if called generally or binary=False;
+            +full 16-bit wire in binary format (as a str) if binary=True;
+            +a single bit str if you specify only one bit of the 16-bit wire;
+            +a str of bits specified by a list of bit indices in the 16-bit wire;
+        """
         self.UpdateWireOuts()
         wireVal = self.GetWireOutValue(epAddr)
         if binary == False:
@@ -117,24 +156,52 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                 bitVal = [wireVal[l-x] for x in bits]
                 bitVal = ''.join(bitVal)
                 return bitVal
-                
-    
+
+
     def writeWire(self, epAddr=0x00, val=0x00, mask=None):
+        """
+        Method: writeWire
+        Params: int epAddr=0x00: address of wire
+            int val=0x00: value to write to wire
+            int mask=None: position in wire to write val to
+        Returns:
+        Description: Write a value, val, to the addr, epAddr, on the OK board.
+            The position of that value can be set by using a mask.
+            Example: change the values of bit-0 and bit-2 (of the wire/reg on the OK board)
+            to 1's. val=1, mask=0x05
+        """
         if mask == None:
             self.SetWireInValue(epAddr, val)
         else:
             self.SetWireInValue(epAddr, val, mask)
         self.UpdateWireIns()
-    
+
     def manualReset(self, epAddr=RESET_ADDR, mask=0x01):
+        """
+        Method: manualReset
+        Params: int epAddr=RESET_ADDR: address of wire with the reset bit in it
+            int mask=0x01: position of the reset bit in the wire
+        Returns:
+        Description: Manually toggle on-off the bit placed as reset on the OK board.
+        """
         self.SetWireInValue(epAddr, 0xff, mask)
         self.UpdateWireIns()
         self.SetWireInValue(epAddr, 0x00, mask)
         self.UpdateWireIns()
-    
+
     def configureFPGA(self, fileName=None, fromFlash=False):
+        """
+        Method: configureFPGA
+        Params: str fileName=None: file name of .bit file to configure FPGA with
+            bool fromFlash=False: determine if configuring from file or onboard
+                flash
+        Returns:
+        Description: configure the FPGA based on the .bit file, with name fileName,
+        of from flash (does not work for flash programming right now). If no fileName
+        is provided, the user will be prompted for the file path.
+        """
         if not fromFlash:
-            
+
             if fileName == None:
                 try:
                     file_opt = options = {}
@@ -143,133 +210,74 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
                     options['initialdir'] = 'C:\\'
                     options['initialfile'] = 'ADC_Testing.bit'
                     options['title'] = 'Open FPGA .bit file.'
-                    fileName = FD.askopenfilename(mode='r', **file_opt)
+                    fileName = self.FD.openDataFileNameWrite(file_opt=file_opt)
                 except:
                     self.MB.showerror('File Error', data_file_error_text)
-                    
+                    self.hasBeenConfigured = False
+
                 self.ConfigureFPGA(fileName)
                 self.hasBeenConfigured = True
             else:
                 self.ConfigureFPGA(fileName)
                 self.hasBeenConfigured = True
-                
+
         else:
             # configure FPGA from flash here
             pass
 
-    def openDataFileNameWrite(self, extension='.txt'):
-        file_opt = options = {}
-        options['defaultextension'] = '{}'.format(extension)
-        options['filetypes'] = [('{} File'.format(extension), '{}'.format(extension)), ('all files', '.*')]
-        options['initialdir'] = 'C:\\'
-        options['initialfile'] = 'ADC_results{}'.format(extension)
-        options['title'] = 'Open FPGA {} file.'.format(extension)
-        root = Tk()
-        root.withdraw()
-        return FD.askopenfilename(**file_opt)
-    
-    def testADC(self, fileName=None, samples=2048, bufSize=1, timeout=1, slowStart=True):
-        
+    def getConfigStatus(self):
+        return self.hasBeenConfigured
+
+    def getDeviceInfo(self, infoPopUp=False):
         """
-        samples=number values read from FPGA fifo
-        timeout(ms)=time to wait for fifo to be not empty (in milliseconds)
-        slowStart=boolean whether or not timeout should be applied immediate. Keep
-                  True if external source is not on before this code is ran. 
+        Method: getDeviceInfo
+        Params: bool infoPopUp=False: display pop version of device info
+            as opposed to returning it.
+        Returns: if (infoPopUp==False): str
+        Description: returns OK board device info or creates a popup
         """
-        if not self.hasBeenConfigured:
-            self.configureFPGA(fileName)
-        
-        try:
-            data_file = open(self.openDataFileNameWrite(), 'w')
-        except FileNotFoundError:
-            self.MB.showerror('File Error', data_file_error_text)
-            sys.exit()
-            
-        for i in range(math.ceil(samples/bufSize)):
-            # Take 'samples' samples
-            
-            
-            if bufSize <= 1:
-                timeout_senti = '1' == self.readWire(FIFO_EMPTY_ADDR, binary=True, bits=[1])
-                """
-                0x20<0> == fifo_empty signal
-                Wait until the fifo is no longer empty
-                """
-            else:
-                fifo_data_count = self.CV.ba2ia(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR))[0]
-                timeout_senti = fifo_data_count < bufSize
-                """
-                0xA1 == fifo_data_count signal
-                Wait until the fifo has enough data in it
-                """
-                
-            timestart = time.time()
-            while (timeout_senti):
-                
-                if slowStart == False:
-                    if ((time.time() - timestart)*1000 >= timeout):
-                        self.MB.showerror('Timeout', test_adc_timeout_error_text)
-                        data_file.write(test_adc_timeout_error_text)
-                        data_file.close()
-                        sys.exit()
-                
-                if bufSize <= 1:
-                    timeout_senti = '1' == self.readWire(FIFO_EMPTY_ADDR, binary=True, bits=[1])
-                else:
-                    fifo_data_count = self.CV.ba2ia(self.readPipe(epAddr=FIFO_DATA_COUNT_ADDR, bufSize=bufSize))[0]
-                    print("fifo_data_count: {}".format(str(fifo_data_count)))
-                    timeout_senti = fifo_data_count < bufSize
-                    
-            slowStart = False            
-            
-            data = self.CV.ba2ia(self.readPipe(epAddr = ADC_DATA_ADDR, bufSize=bufSize))
-            print("data: {}".format(data))
-            for d in data:
-                data_file.write(str(d) +'\n')
-            
-        data_file.close()
-        self.MB.showinfo('Write complete', results_written_complete_text)
-            
-            
-    def __repr__(self):
         self.devInfo = ok.okTDeviceInfo()
         if (self.NoError != self.GetDeviceInfo(self.devInfo)):
             self.MB.showerror('No Device Info', retrieve_device_info_error_text)
             return 'No Device Info'
         else:
-            return FPGA_Communication_repr_text.format(self.GetDeviceMajorVersion(), 
-                       self.GetDeviceMinorVersion(),
-                       self.GetSerialNumber(),
-                       self.GetDeviceID(),
-                       self.GetBoardModel(), 
-                       self.IsFrontPanelEnabled())
-
-def initFPGA():
-    fileName = "adc_testing_top.bit"
-    xem = FPGA_Communication()
-    if xem == None:
-        print("no connect")
-        return None
-    else:
-        xem.configureFPGA(fileName)
-        print(xem)
-        return xem
+            deviceInfo = FPGA_Communication_repr_text.format(self.GetDeviceMajorVersion(),
+                           self.GetDeviceMinorVersion(),
+                           self.GetSerialNumber(),
+                           self.GetDeviceID(),
+                           self.GetBoardModel(),
+                           self.IsFrontPanelEnabled())
+            if not infoPopUp:
+                return deviceInfo
+            else:
+                self.MB.showinfo('Device Info', deviceInfo)
 
 
+    def __repr__(self):
+        """
+        Method: __repr__
+        Params:
+        Returns:
+        Description: returns OK board device info and class info
+        """
+        print(self.getDeviceInfo())
+        return """
+        Class: FPGA_Communication
+        Inherit: ok.okCFrontPanel,ok.okCPLL22393
+        Composition: Conversions
+        Inheritance was chosen over composition for two reasons.
+        1) You can reference the super classes from this class directly
+        2) Learning experience (if comp is necessary, I will change this class)
+        Description:
+            Use this class to communicate with the Opal Kelly (OK) board as if you were using
+            the inherited classes. There are macro methods in this class, such as
+            writeWire, readWire, and readPipe that perform extra tasks before they
+            communication to the OK board; with this in mind, use this classes version
+            of those methods. For methods such as controlling the PLL on the OK board,
+            you can use this class to invoke the methods from the OK API for the PLL.
+        """
 
-xem = initFPGA()
-xem.manualReset()
-
-xem.testADC(samples=512, bufSize=2, timeout=1000)
-
-#while(1):
-#    print("debugOut: {}".format(xem.readWire(DEBUG_ADDR, True, [1])))
 
 
-#ADC_CLOCK_COUNT_ADDR = 0xA2
-#while(1):
-#    print("adc_clock_count: {}".format(xem.readPipe(ADC_CLOCK_COUNT_ADDR)))
-
-    
 
 
