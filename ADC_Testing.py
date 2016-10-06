@@ -38,7 +38,8 @@ def testADC(fileName=None, samples=2048, bufSize=1, timeout=1, slowStart=True):
         str fileName=None: file name used for configuring the FGPA if not already done
         int samples=2048: number values read from FPGA fifo
         int bufSize=1: How many consecutive reads from the FIFO occur
-        int timeout=1: time(ms) to wait for fifo to be not empty (in milliseconds)
+        int timeout=1: time(ms) to wait for fifo to be not empty (in milliseconds),
+            otherwise, program assumes a disconnect or error and exits the program
         bool slowStart=True: boolean whether or not timeout should be applied immediate.
             Keep True if external source is not on before this code is ran.
     Returns:
@@ -102,7 +103,9 @@ def testADC(fileName=None, samples=2048, bufSize=1, timeout=1, slowStart=True):
     MB.showinfo('Write complete', results_written_complete_text)
 
 
-
+if __name__ == '__main__':
+    fileName = 'adc_testing_top.bit'
+    testADC(fileName)
 
 
 
