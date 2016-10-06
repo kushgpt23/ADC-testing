@@ -10,4 +10,8 @@ Python 3.5 (Host)
 
 Verilog 
 * Required Files
- * ADC_Testing.v (
+ * ADC_Testing.v (Top)
+ * Debouncer.v
+
+
+
