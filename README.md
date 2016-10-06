@@ -28,5 +28,7 @@ Verilog
  * ADC_Testing.v (Top)
  * Debouncer.v
 
+#Operation
+
 
 
