@@ -4,7 +4,7 @@ Created on Oct 6, 2016
 @author: Max Ruiz
 '''
 
-from FPGA_Communication import FPGA_Communication
+from FPGA_Communication import initFPGA
 from MessageTexts import *
 from Utils import MBox, FDialog, Conversions
 import sys
@@ -12,24 +12,7 @@ import time
 import math
 from ep_address import *
 
-def initFPGA(fileName=None):
-    """
-    Function: initFPGA
-    Params: str fileName=None: file name used for configuring the FGPA if not already done
-    Returns: FPGA_Communication() instance
-    Description: create instance of FPGA_Communication() and check
-        if it was created successfully or not.
-    """
-    fileName = "adc_testing_top.bit"
-    xem = FPGA_Communication()
-    MB = MBox()
-    if xem == None:
-        MB.showerror('No Connect', connect_to_device_error_text)
-        sys.exit()
-    else:
-        xem.configureFPGA(fileName)
-        print(xem)
-        return xem
+
 
 def testADC(fileName=None, samples=2048, bufSize=1, timeout=1, slowStart=True):
     """
