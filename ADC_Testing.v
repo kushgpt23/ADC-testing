@@ -37,8 +37,6 @@ module ADC_Testing_Top(
 
 parameter PRECISION = 10;
 parameter FIFO_COUNT_WIDTH = 12;
-parameter UNDERFLOW_THRESHOLD = 0; // lowest # available databytes in FIFO
-//parameter OVERFLOW_THRESHOLD = {FIFO_COUNT_WIDTH {1'b1}}; // 
 
 
 /*************************************************/
@@ -62,7 +60,7 @@ Debounce debounce_0(
 /*************************************************/
 //------------------- FIFO ----------------------//
 /*************************************************/
-reg rd_en;
+reg rd_en = 1'b0;
 wire [PRECISION-1:0] adc_code_out;
 wire fifo_full;
 wire fifo_empty;
@@ -71,12 +69,11 @@ wire [FIFO_COUNT_WIDTH-1:0] wr_data_count;
 wire fifo_clk;
 fifo_adc fifo_adc_0(
   .rst(rst),
-  .wr_clk(~adc_clk), // data will be avaible for reading from ADC on negedge of adc_clock
+  .wr_clk(adc_clk), // data will be avaible for reading from ADC on negedge of adc_clock
   .rd_clk(fifo_clk),
   .din(adc_code_in), // 10 bit;
   .wr_en(1'b1),
-  //.rd_en(rd_en),
-  .rd_en(1'b1),
+  .rd_en(rd_en),
   .dout(adc_code_out), // 10 bit;
   .full(fifo_full),
   .empty(fifo_empty),
@@ -84,11 +81,11 @@ fifo_adc fifo_adc_0(
   .wr_data_count(wr_data_count) // 12 bit; provides how many words are in the fifo, how full is the fifo
 );
 
-wire underflowflag;
-assign underflowflag = rd_data_count <= UNDERFLOW_THRESHOLD ? 1'b1 : 1'b0;
+// Data should be available as the host requests it via epA0read.
+always @(posedge ti_clk) begin
+	rd_en <= epA0read;
+end
 
-//wire overflowflag;
-//assign overflowflag = wr_data_count >= OVERFLOW_THRESHOLD ? 1'b1 : 1'b0;
 
 /*************************************************/
 //------------- Opal Kelly Comm. ----------------//
@@ -122,7 +119,7 @@ assign i2c_scl = 1'bz;
 assign hi_muxsel = 1'b0;
 
 // HDL bus
-parameter EP_OUTPUTS = 4;
+parameter EP_OUTPUTS = 3; // define number of connections to OK OR block
 wire [17*EP_OUTPUTS-1:0] ok2x;
 
 // Host to HDL connection module
@@ -168,11 +165,6 @@ okPipeOut pipeA1 (
 
 wire [15:0] ep20wire; // wire out
 assign ep20wire[0] = fifo_empty;
-// DEBUG
-wire debugOut;
-assign debugOut = adc_code_in[0] & adc_code_in[1];
-assign ep20wire[1] = debugOut;
-// DEBUG
 okWireOut wire20 (
 	.ok1(ok1),
 	.ok2(ok2x[2*17 +: 17]),
@@ -180,19 +172,6 @@ okWireOut wire20 (
 	.ep_datain(ep20wire)
 );
 
-// DEBUG
-reg [15:0] adc_clk_count = {16 {1'b0}};
-wire [15:0] epA2pipe;
-assign epA2pipe = adc_clk_count;
-wire epA2read;
-okPipeOut pipeA2 (
-	.ok1(ok1),
-	.ok2(ok2x[3*17 +: 17]),
-	.ep_addr(8'hA2),
-	.ep_datain(epA2pipe), // data from FIFO
-	.ep_read(epA2read) // enable rd_en at FIFO
-);
-// DEBUG
 
 
 okWireOR #(.N(EP_OUTPUTS)) wireOR(
@@ -204,23 +183,10 @@ okWireOR #(.N(EP_OUTPUTS)) wireOR(
 //------------- Readback ADC data ---------------//
 /*************************************************/
 
-/*
-assign epA0pipe = ~underflowflag ? 
-						{{16-PRECISION {1'b0}}, adc_code_out} :
-						{16 {1'b0}};
-*/
-
-assign epA0pipe = {{16-PRECISION {1'b0}}, adc_code_out};
+assign epA0pipe = {{6 {1'b0}}, adc_code_out}; // 6-0's appended to 10bits of adc data
 
 assign fifo_clk = ~ti_clk; // page 50 of FrontPanel-UM.pdf
 
-/*
-always @(posedge ti_clk) begin
-	if (epA0read) begin
-		rd_en <= ~underflowflag;
-	end
-end
-*/
 
 /*************************************************/
 //------------- Write in ADC data ---------------//
@@ -233,10 +199,7 @@ end
 //------------------- DEBUG ---------------------//
 /*************************************************/
 
-// Using this buffer to verify that the ADC clock is actually coming in and being detected.
-always @(posedge adc_clk) begin
-	adc_clk_count = adc_clk_count + 1'b1;
-end
+
 
 
 endmodule
