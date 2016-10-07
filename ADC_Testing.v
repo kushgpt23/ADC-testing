@@ -81,6 +81,7 @@ fifo_adc fifo_adc_0(
   .wr_data_count(wr_data_count) // 12 bit; provides how many words are in the fifo, how full is the fifo
 );
 
+// Data should be available as the host requests it via epA0read.
 always @(posedge ti_clk) begin
 	rd_en <= epA0read;
 end
@@ -118,7 +119,7 @@ assign i2c_scl = 1'bz;
 assign hi_muxsel = 1'b0;
 
 // HDL bus
-parameter EP_OUTPUTS = 4;
+parameter EP_OUTPUTS = 3; // define number of connections to OK OR block
 wire [17*EP_OUTPUTS-1:0] ok2x;
 
 // Host to HDL connection module
@@ -164,11 +165,6 @@ okPipeOut pipeA1 (
 
 wire [15:0] ep20wire; // wire out
 assign ep20wire[0] = fifo_empty;
-// DEBUG
-wire debugOut;
-assign debugOut = adc_code_in[0] & adc_code_in[1];
-assign ep20wire[1] = debugOut;
-// DEBUG
 okWireOut wire20 (
 	.ok1(ok1),
 	.ok2(ok2x[2*17 +: 17]),
@@ -176,19 +172,6 @@ okWireOut wire20 (
 	.ep_datain(ep20wire)
 );
 
-// DEBUG
-reg [15:0] adc_clk_count = {16 {1'b1}};
-wire [15:0] epA2pipe;
-assign epA2pipe = adc_clk_count;
-wire epA2read;
-okPipeOut pipeA2 (
-	.ok1(ok1),
-	.ok2(ok2x[3*17 +: 17]),
-	.ep_addr(8'hA2),
-	.ep_datain(epA2pipe), // data from FIFO
-	.ep_read(epA2read) // enable rd_en at FIFO
-);
-// DEBUG
 
 
 okWireOR #(.N(EP_OUTPUTS)) wireOR(
@@ -200,7 +183,7 @@ okWireOR #(.N(EP_OUTPUTS)) wireOR(
 //------------- Readback ADC data ---------------//
 /*************************************************/
 
-assign epA0pipe = {{6 {1'b0}}, adc_code_out};
+assign epA0pipe = {{6 {1'b0}}, adc_code_out}; // 6-0's appended to 10bits of adc data
 
 assign fifo_clk = ~ti_clk; // page 50 of FrontPanel-UM.pdf
 
@@ -216,11 +199,7 @@ assign fifo_clk = ~ti_clk; // page 50 of FrontPanel-UM.pdf
 //------------------- DEBUG ---------------------//
 /*************************************************/
 
-// Using this buffer to verify that the ADC clock is actually coming in and being detected.
 
-always @(posedge adc_clk) begin
-	adc_clk_count <= adc_clk_count + 1'b1;
-end
 
 
 endmodule
