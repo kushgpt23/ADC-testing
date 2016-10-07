@@ -279,5 +279,25 @@ class FPGA_Communication(ok.okCFrontPanel, ok.okCPLL22393):
 
 
 
-
+def initFPGA(fileName=None, autoConfig=True):
+    """
+    Function: initFPGA
+    Params: str fileName=None: file name used for configuring the FGPA if not already done
+        bool autoConfig=True: should initFPGA configure the FPGA, or leave the programmer
+            to do that later?
+    Returns: FPGA_Communication() instance
+    Description: create instance of FPGA_Communication() and check
+        if it was created successfully or not.
+    """
+    fileName = "adc_testing_top.bit"
+    xem = FPGA_Communication()
+    MB = MBox()
+    if xem == None:
+        MB.showerror('No Connect', connect_to_device_error_text)
+        sys.exit()
+    else:
+        if autoConfig:
+            xem.configureFPGA(fileName)
+        print(xem)
+        return xem
 
